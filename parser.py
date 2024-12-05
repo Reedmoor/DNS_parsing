@@ -17,7 +17,7 @@ def parse_characteristics_page(driver, url):
     print(soup.prettify())
 
     # TODO:заменить классы
-    name = soup.find('div', class_="product-card-description__title")
+    name = soup.find('div', class_="product-card-top__name")
     price = soup.find('div', class_="product-buy__price")
     desc = soup.find('div', class_="product-card-description-text")
     avail = soup.find('a', class_="order-avail-wrap__link ui-link ui-link_blue")
@@ -25,6 +25,21 @@ def parse_characteristics_page(driver, url):
     cvalue = soup.find_all('div', class_="product-characteristics__spec-value")
     main_picture = soup.find('img', class_="product-images-slider__main-img")
     pictures_soup = soup.find_all('img', class_="product-images-slider__img loaded tns-complete")
+    """
+    запарсить:
+    product-card-top__rating product-card-top__rating_exists в нем data-rating="4.5"
+    product-card-top__brand-image loaded в нем src
+    product-card-top__code
+    p (описание)
+    product-characteristics-content
+    product-card-description-drivers__item-link в нем href
+    profile-info__name 
+    opinion-rating-slider в нем все __tab
+    opinion-multicard-slider (если есть)
+    ow-opinion__date
+    ow-opinion__texts
+    vote-widget__sum
+    """
 
     pictures_list = []
     for i in pictures_soup:
@@ -97,7 +112,13 @@ def main():
 
     driver = uc.Chrome()
     urls_to_parse = [
-        'https://www.dns-shop.ru/search/?q=%D0%BF%D1%8B%D0%BB%D0%B5%D1%81%D0%BE%D1%81+%D1%80%D0%BE%D0%B1%D0%BE%D1%82+dreame&category=17a8face16404e77&p={page}',
+        'https://www.dns-shop.ru/search/?q=%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BA%D0%B0%D1%80%D1%82%D0%B0&'
+        'category=17a89aab16404e77&p={page}',
+        'https://www.dns-shop.ru/search/?q=%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D0%BE%D1%80&catego'
+        'ry=17a899cd16404e77&p={page}',
+        'https://www.dns-shop.ru/search/?q=%D0%BC%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D1%81%D0%BA%D0%B0%'
+        'D1%8F+%D0%BF%D0%BB%D0%B0%D1%82%D0%B0&category=17a89a0416404e77&p={page}'
+
     ]
 
     urls = []
