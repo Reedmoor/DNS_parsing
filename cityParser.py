@@ -1,10 +1,11 @@
 import requests
 
 def get_categories():
-    url = "https://restapi.dns-shop.ru/v1/get-city-list"
+    url = "https://restapi.dns-shop.ru/v1/get-menu"
 
     headers = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "cityid": "30b7c1f3-03fb-11dc-95ee-00151716f9f5",
         "origin": "https://www.dns-shop.ru",
     }
 

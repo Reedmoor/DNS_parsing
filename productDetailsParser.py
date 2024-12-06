@@ -44,6 +44,34 @@ def parse_breadcrumbs(driver):
     return categories
 
 
+def parse_characteristics(driver):
+    soup = BeautifulSoup(driver.page_source, 'lxml')
+    characteristics = []
+
+    # Поиск групп характеристик
+    groups = soup.find_all('div', class_='product-characteristics__group')
+    for group in groups:
+        group_name = group.find('div', class_='product-characteristics__group-title').text.strip()
+        items = group.find_all('li', class_='product-characteristics__spec')
+
+        group_data = {"Группа": group_name, "Характеристики": []}
+
+        for item in items:
+            title_element = item.find('div', class_='product-characteristics__spec-title-content')
+            value_element = item.find('div', class_='product-characteristics__spec-value')
+
+            if title_element and value_element:
+                characteristic = {
+                    "характеристика": title_element.text.strip(),
+                    "значение": value_element.text.strip()
+                }
+                group_data["Характеристики"].append(characteristic)
+
+        characteristics.append(group_data)
+
+    return characteristics
+
+
 def extract_tns_srcset(soup):
     # Find all elements with tns-item class
     tns_items = soup.find_all('div', class_='tns-item')
@@ -55,13 +83,11 @@ def extract_tns_srcset(soup):
             srcset_list.append(item['data-srcset'])
 
     return srcset_list
-
-
-
 def parse_characteristics_page(driver, url):
     """Parse product page details."""
     driver.get(url)
     pause(randint(4, 5))
+
     soup = BeautifulSoup(driver.page_source, 'lxml')
 
     def safe_text(soup, tag, class_=None, attribute=None):
@@ -76,6 +102,7 @@ def parse_characteristics_page(driver, url):
 
     categories = parse_breadcrumbs(driver)
     images = extract_tns_srcset(soup)
+    characteristics = parse_characteristics(driver)
 
     # Extract product details
     item = {
@@ -83,21 +110,21 @@ def parse_characteristics_page(driver, url):
         "url": url,
         "categories": categories,
         "images": images,
-        "Название": safe_text(soup, 'div', class_="product-card-top__name"),
-        "Цена": safe_text(soup, 'div', class_="product-buy__price"),
-        "Рейтинг": safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists",
+        "name": safe_text(soup, 'div', class_="product-card-top__name"),
+        "price": safe_text(soup, 'div', class_="product-buy__price"),
+        "rating": safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists",
                              attribute='data-rating'),
-        "Количество обзоров": safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists"),
-        "Логотип бренда": safe_text(soup, 'img', class_="product-card-top__brand-image loaded", attribute='src'),
-        "Описание": safe_text(soup, 'div', class_="product-card-description-text"),
-        "Характеристики": safe_text(soup, 'div', class_="product-characteristics-content"),
-        "Драйвера": safe_list(soup, 'a', class_="product-card-description-drivers__item-link", attribute='href'),
-        "Имена профилей": safe_list(soup, 'div', class_="profile-info__name"),
-        "Рейтинг вкладки": safe_list(soup, 'div', class_="opinion-rating-slider__tab"),
-        "Мультислайдер отзывов": bool(soup.find('div', class_="opinion-multicard-slider")),
-        "Даты отзывов": safe_list(soup, 'div', class_="ow-opinion__date"),
-        "Тексты отзывов": safe_list(soup, 'div', class_="ow-opinion__texts"),
-        "Голоса": safe_text(soup, 'span', class_="vote-widget__sum"),
+        "number_of_reviews": safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists"),
+        "brand_logo": safe_text(soup, 'img', class_="product-card-top__brand-image loaded", attribute='src'),
+        "description": safe_text(soup, 'div', class_="product-card-description-text"),
+        "characteristics": characteristics,
+        "drivers": safe_list(soup, 'a', class_="product-card-description-drivers__item-link", attribute='href'),
+        "profile_names": safe_list(soup, 'div', class_="profile-info__name"),
+        "tab_rating": safe_list(soup, 'div', class_="opinion-rating-slider__tab"),
+        "review": bool(soup.find('div', class_="opinion-multicard-slider")),
+        "review_dates": safe_list(soup, 'div', class_="ow-opinion__date"),
+        "review_texts": safe_list(soup, 'div', class_="ow-opinion__texts"),
+        "votes": safe_text(soup, 'span', class_="vote-widget__sum"),
     }
 
     return item
