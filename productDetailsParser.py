@@ -145,12 +145,10 @@ def parse_characteristics_page(driver, url):
         return brand_name
 
     def safe_text(soup, tag, class_=None, attribute=None):
-        """Safely extract text or attribute from an element."""
         element = soup.find(tag, class_=class_)
         return element.get(attribute).strip() if element and attribute else element.text.strip() if element else None
 
     def safe_list(soup, tag, class_=None, attribute=None):
-        """Safely extract list of texts or attributes from elements."""
         elements = soup.find_all(tag, class_=class_)
         return [element.get(attribute).strip() if attribute else element.text.strip() for element in elements if element]
 
