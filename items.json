@@ -1,0 +1,49 @@
+[
+    {
+        "id": "5456140",
+        "url": "https://www.dns-shop.ru/product/a67afeaff7bbd9cb/robot-pylesos-dreame-x40-ultra-complete-belyj/",
+        "categories": [
+            {
+                "url": "https://www.dns-shop.ru/catalog/17a8e9b716404e77/bytovaya-texnika/",
+                "name": "Бытовая техника"
+            },
+            {
+                "url": "https://www.dns-shop.ru/catalog/17a8ea2316404e77/texnika-dlya-doma/",
+                "name": "Техника для дома"
+            },
+            {
+                "url": "https://www.dns-shop.ru/catalog/3275c8503bd17fd7/uborka/",
+                "name": "Уборка"
+            },
+            {
+                "url": "https://www.dns-shop.ru/catalog/17a8face16404e77/roboty-pylesosy/",
+                "name": "Роботы-пылесосы"
+            }
+        ],
+        "images": [],
+        "name": "Робот-пылесос Dreame X40 Ultra Complete белый",
+        "price_original": 139999,
+        "rating": 4.5,
+        "number_of_reviews": 43,
+        "brand_logo": "Dreame",
+        "description": "Робот-пылесос Dreame X40 Ultra Complete белого цвета легко собирает любой мусор и освежает помещение при помощи влажной уборки.",
+        "characteristics": [
+            {
+                "group": "Заводские данные",
+                "characteristics": []
+            },
+            {
+                "group": "Общие параметры",
+                "characteristics": []
+            },
+            {
+                "group": "Основные характеристики",
+                "characteristics": []
+            }
+        ],
+        "drivers": [
+            "https://pub.fsa.gov.ru/rds/declaration/view/18577323/common",
+            "https://drv.dns-shop.ru/drivers%2Foth%2FD%2Fdreame-x40-ultra_instrukcia_115555_09072024.pdf"
+        ]
+    }
+]
