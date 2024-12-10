@@ -1,8 +1,12 @@
 import sys
 import json
 import scrapy
+import time
 
-from tqdm import tqdm
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from random import randint
 from time import sleep as pause
 import undetected_chromedriver as uc
@@ -85,43 +89,127 @@ def parse_breadcrumbs(driver):
 
 def parse_characteristics(driver):
     soup = BeautifulSoup(driver.page_source, 'lxml')
-    characteristics = []
+    characteristics = {}
 
-    # Поиск групп характеристик
-    groups = soup.find_all('div', class_='product-characteristics__group')
+    # Находим основной контейнер с характеристиками
+    content = soup.find('div', class_='product-characteristics-content')
+    if not content:
+        return characteristics
+
+    # Проходим по всем группам характеристик
+    groups = content.find_all('div', class_='product-characteristics__group')
     for group in groups:
         group_name = group.find('div', class_='product-characteristics__group-title').text.strip()
+        characteristics[group_name] = []
+
+        # Проходим по всем характеристикам в группе
         items = group.find_all('li', class_='product-characteristics__spec')
-
-        group_data = {"group": group_name, "characteristics": []}
-
         for item in items:
-            title_element = item.find('div', class_='product-characteristics__spec-title-content')
+            title_element = item.find('span', class_='product-characteristics__spec-title-content')
             value_element = item.find('div', class_='product-characteristics__spec-value')
 
             if title_element and value_element:
-                characteristic = {
-                    "characteristics": title_element.text.strip(),
-                    "value": value_element.text.strip()
-                }
-                group_data["characteristic"].append(characteristic)
+                title = title_element.text.strip()
+                value = value_element.text.strip()
 
-        characteristics.append(group_data)
+                # Удаляем лишние пробелы и переносы строк
+                title = ' '.join(title.split())
+                value = ' '.join(value.split())
 
-    return characteristics
+                characteristics[group_name].append({
+                    "title": title,
+                    "value": value
+                })
+
+    return {"characteristics": characteristics}
 
 
-def extract_tns_srcset(soup):
-    # Find all elements with tns-item class
-    tns_items = soup.find_all('div', class_='tns-item')
+def extract_images(driver, max_images=10):
+    """Extract images using Selenium"""
+    driver.get(TEST_URL)
+    images = []
 
-    # Extract data-srcset values, ordered by ID
-    srcset_list = []
-    for item in tns_items:
-        if item.has_attr('data-srcset'):
-            srcset_list.append(item['data-srcset'])
+    # Сначала найдем и кликнем на миниатюру
+    try:
+        thumbnail = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'product-images-slider__img.tns-complete'))
+        )
+        thumbnail.click()
 
-    return srcset_list
+        # Ждем появления просмотрщика изображений
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'media-viewer-image__main'))
+        )
+    except Exception as e:
+        print(f"Error clicking thumbnail: {e}")
+        return []
+
+    while len(images) < max_images:  # Ограничиваем количество фотографий
+        # Get current page source and parse it
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+        # Проверяем наличие контейнера с классом media-viewer-image__main_with-desc
+        if soup.find('div', class_='media-viewer-image__main.media-viewer-image__main_with-desc'):
+            print("Found container with description, stopping parsing")
+            break
+
+        # Find the main media viewer container
+        media_viewer = soup.find('div', class_='media-viewer-image__main')
+
+        if not media_viewer:
+            break
+
+        # Find the main image
+        main_img = media_viewer.find('img', class_='media-viewer-image__main-img')
+
+        if main_img and 'src' in main_img.attrs:
+            images.append(main_img['src'])
+            print(f"Found image {len(images)}/{max_images}")
+
+        if len(images) >= max_images:
+            break
+
+        try:
+            right_control = driver.find_element(By.CSS_SELECTOR,
+                                                'div.media-viewer-image__main > div.media-viewer-image__control_right')
+            right_control.click()
+            time.sleep(0.5)
+
+        except Exception as e:
+            print(f"Error clicking or finding next button: {e}")
+            break
+
+    return list(dict.fromkeys(images))
+
+
+def parse_product_data(driver):
+    soup = BeautifulSoup(driver.page_source, 'lxml')
+
+    # Находим JSON-LD скрипт
+    script = soup.find('script', type='application/ld+json')
+    if script:
+        try:
+            # Парсим JSON
+            data = json.loads(script.string)
+
+            # Извлекаем рейтинг и количество отзывов
+            rating = data.get('aggregateRating', {}).get('ratingValue')
+            review_count = data.get('aggregateRating', {}).get('reviewCount')
+
+            # Возвращаем данные
+            return {
+                "rating": float(rating) if rating else None,
+                "number_of_reviews": int(review_count) if review_count else None
+            }
+        except json.JSONDecodeError:
+            print("Ошибка при парсинге JSON-LD")
+
+    # Если что-то пошло не так, возвращаем None
+    return {
+        "rating": None,
+        "number_of_reviews": None
+    }
+
 def parse_characteristics_page(driver, url):
     """Parse product page details."""
     driver.get(url)
@@ -130,7 +218,7 @@ def parse_characteristics_page(driver, url):
     soup = BeautifulSoup(driver.page_source, 'lxml')
     selector = scrapy.Selector(text=driver.page_source)
 
-    def logo():
+    def logo(): #совместить с product_data
         json_ld_scripts = selector.xpath(
             "//script[@type='application/ld+json' and contains(text(), 'Product')]/text()").getall()
         brand_name = None
@@ -153,8 +241,9 @@ def parse_characteristics_page(driver, url):
         return [element.get(attribute).strip() if attribute else element.text.strip() for element in elements if element]
 
     categories = parse_breadcrumbs(driver)
-    images = extract_tns_srcset(soup)
+    images = extract_images(driver)
     characteristics = parse_characteristics(driver)
+    product_data = parse_product_data(driver)
 
     # Extract product details
     item = {
@@ -166,9 +255,8 @@ def parse_characteristics_page(driver, url):
         "price_discounted": clean_price(selector.xpath("//div[contains(@class, 'product-buy__price_active')]/text()").get()) or None,
         "price_original": clean_price(selector.xpath("//span[@class='product-buy__prev']/text()").get()) or
                           clean_price(selector.xpath("//div[@class='product-buy__price']/text()").get()),
-        "rating": float(safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists",
-                             attribute='data-rating')),
-        "number_of_reviews": int(safe_text(soup, 'a', class_="product-card-top__rating product-card-top__rating_exists")),
+        "rating": product_data['rating'],
+        "number_of_reviews": product_data['number_of_reviews'],
         "brand_logo": logo(),
         "description": safe_text(soup, 'div', class_="product-card-description-text"),
         "characteristics": characteristics,
