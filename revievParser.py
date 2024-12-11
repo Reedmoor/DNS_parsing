@@ -1,4 +1,4 @@
-import sys
+import os
 import json
 import undetected_chromedriver as uc
 from random import randint
@@ -17,6 +17,27 @@ def _safe_element_text(element, by, selector):
     except (NoSuchElementException, AttributeError):
         return None
 
+def parse_product_details(driver, review_element):
+    """Parse additional product details (color, size, etc.) from a specific review element."""
+    additions = {}
+    try:
+        detail_tabs = review_element.find_elements(By.XPATH, './/div[contains(@class, "opinion-multicard-slider__tab")]')
+
+        for tab in detail_tabs:
+            try:
+                tab_text = tab.text.strip()
+                if ':' in tab_text:
+                    category, value = tab_text.split(':', 1)
+                    category = category.strip()
+                    value = value.strip()
+                    additions[category] = value
+            except Exception as e:
+                print(f"Error parsing detail tab: {e}")
+
+    except Exception as e:
+        print(f"Error in parse_product_details: {e}")
+
+    return additions
 
 def parse_opinion_ratings(driver, review_element):
     """Parse ratings from a specific review element."""
@@ -41,7 +62,7 @@ def parse_opinion_ratings(driver, review_element):
                                                           './/div[contains(@class, "star-rating")]//span[@data-state="selected"]')
                     rating_value = len(star_rating_elems)
 
-                ratings[category_name] = rating_value
+                ratings[category_name] = int(rating_value)
             except Exception as e:
                 print(f"Error parsing rating tab: {e}")
 
@@ -51,21 +72,31 @@ def parse_opinion_ratings(driver, review_element):
     return ratings
 
 
-def save_to_json(data, filename="reviews.json"):
-    """Save data to JSON file."""
-    try:
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"Reviews successfully saved to {filename}")
-    except Exception as e:
-        print(f"Error saving reviews to JSON: {e}")
-        import traceback
-        traceback.print_exc()
+def load_existing_reviews(filename):
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:  # Check if the file is not empty
+                    return json.loads(content)
+                else:
+                    print(f"Warning: {filename} is empty. Starting with an empty list.")
+                    return []
+        except json.JSONDecodeError:
+            print(f"Warning: {filename} contains invalid JSON. Starting with an empty list.")
+            return []
+    else:
+        print(f"Info: {filename} does not exist. Starting with an empty list.")
+        return []
 
+def save_to_json(data, filename):
+    """Save data to a JSON file."""
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-def parse_reviews(driver):
+def parse_reviews(driver, json_filename="reviews.json"):
     """Parse reviews from the current page."""
-    reviews = []
+    all_reviews = load_existing_reviews(json_filename)
     try:
         # Find all review elements
         review_elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'ow-opinion  ow-opinions__item')]")
@@ -107,6 +138,7 @@ def parse_reviews(driver):
                                                    './/div[contains(@class, "profile-info__name")]'),
                     'date': _safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "ow-opinion__date")]'),
                     'rating': parse_opinion_ratings(driver, review_elem),
+                    'additions': parse_product_details(driver, review_elem),
                     'advantages': opinion_texts.get('advantages'),
                     'disadvantages': opinion_texts.get('disadvantages'),
                     'comment': opinion_texts.get('comment'),
@@ -114,19 +146,21 @@ def parse_reviews(driver):
                 }
                 print(review_data)
 
-                reviews.append(review_data)
+                all_reviews.append(review_data)
+                save_to_json(all_reviews, json_filename)
+                print(f"Added new review to {json_filename}")
             except Exception as e:
                 print(f"Error parsing review: {e}")
 
     except Exception as e:
         print(f"Error in parse_reviews: {e}")
 
-    return reviews
+    return all_reviews
 
 
 def main():
     # URL of the product to scrape
-    TEST_URL = "https://www.dns-shop.ru/product/a67afeaff7bbd9cb/robot-pylesos-dreame-x40-ultra-complete-belyj/"
+    TEST_URL = "https://www.dns-shop.ru/product/f72a537ff2cbed20/kovrik-ardor-gaming-gm-xl-asia-dragon-black-and-white-xl-cernyj/"
 
     # Set up the webdriver with additional options for stability
     options = uc.ChromeOptions()
