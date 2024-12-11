@@ -77,7 +77,7 @@ def load_existing_reviews(filename):
         try:
             with open(filename, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
-                if content:  # Check if the file is not empty
+                if content:
                     return json.loads(content)
                 else:
                     print(f"Warning: {filename} is empty. Starting with an empty list.")
@@ -90,7 +90,6 @@ def load_existing_reviews(filename):
         return []
 
 def save_to_json(data, filename):
-    """Save data to a JSON file."""
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 

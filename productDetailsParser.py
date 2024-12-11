@@ -183,20 +183,18 @@ def extract_images(driver, max_images=10):
 
 
 def parse_product_data(driver):
+    """Extract rating and review_count"""
     soup = BeautifulSoup(driver.page_source, 'lxml')
 
     # Находим JSON-LD скрипт
     script = soup.find('script', type='application/ld+json')
     if script:
         try:
-            # Парсим JSON
             data = json.loads(script.string)
 
-            # Извлекаем рейтинг и количество отзывов
             rating = data.get('aggregateRating', {}).get('ratingValue')
             review_count = data.get('aggregateRating', {}).get('reviewCount')
 
-            # Возвращаем данные
             return {
                 "rating": float(rating) if rating else None,
                 "number_of_reviews": int(review_count) if review_count else None
@@ -204,7 +202,6 @@ def parse_product_data(driver):
         except json.JSONDecodeError:
             print("Ошибка при парсинге JSON-LD")
 
-    # Если что-то пошло не так, возвращаем None
     return {
         "rating": None,
         "number_of_reviews": None
@@ -218,7 +215,7 @@ def parse_characteristics_page(driver, url):
     soup = BeautifulSoup(driver.page_source, 'lxml')
     selector = scrapy.Selector(text=driver.page_source)
 
-    def logo(): #совместить с product_data
+    def logo(): #TODO совместить с product_data
         json_ld_scripts = selector.xpath(
             "//script[@type='application/ld+json' and contains(text(), 'Product')]/text()").getall()
         brand_name = None
@@ -240,6 +237,7 @@ def parse_characteristics_page(driver, url):
         elements = soup.find_all(tag, class_=class_)
         return [element.get(attribute).strip() if attribute else element.text.strip() for element in elements if element]
 
+    # Extract functions
     categories = parse_breadcrumbs(driver)
     images = extract_images(driver)
     characteristics = parse_characteristics(driver)
@@ -261,12 +259,6 @@ def parse_characteristics_page(driver, url):
         "description": safe_text(soup, 'div', class_="product-card-description-text"),
         "characteristics": characteristics,
         "drivers": safe_list(soup, 'a', class_="product-card-description-drivers__item-link", attribute='href'),
-        # "profile_names": safe_list(soup, 'div', class_="profile-info__name"),
-        # "tab_rating": safe_list(soup, 'div', class_="opinion-rating-slider__tab"),
-        # "review": bool(soup.find('div', class_="opinion-multicard-slider")),
-        # "review_dates": safe_list(soup, 'div', class_="ow-opinion__date"),
-        # "review_texts": safe_list(soup, 'div', class_="ow-opinion__texts"),
-        # "votes": safe_text(soup, 'span', class_="vote-widget__sum"),
     }
 
     return item
@@ -278,11 +270,9 @@ def main():
     with open('urls.txt', 'r') as file:
         urls = list(map(lambda line: line.strip(), file.readlines()))
 
-    # Parse product details
     parsed_data = []
     # for url in tqdm(urls, ncols=70, unit='товаров', colour='blue', file=sys.stdout):
     try:
-        #url
         parsed_data.append(parse_characteristics_page(driver, TEST_URL))
     except Exception as e:
         print(f"Error parsing #url: {e}")
