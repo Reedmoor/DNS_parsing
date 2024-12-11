@@ -121,7 +121,7 @@ def parse_characteristics(driver):
                     "value": value
                 })
 
-    return {"characteristics": characteristics}
+    return characteristics
 
 
 def extract_images(driver, max_images=10):
@@ -252,12 +252,12 @@ def parse_characteristics_page(driver, url):
         "categories": categories,
         "images": images,
         "name": safe_text(soup, 'div', class_="product-card-top__name"),
-        "price_discounted": clean_price(selector.xpath("//div[contains(@class, 'product-buy__price_active')]/text()").get()) or None,
+        "price_discounted": clean_price(selector.xpath("//div[contains(@class, 'product-buy__price_active')]/text()").get()) or "None",
         "price_original": clean_price(selector.xpath("//span[@class='product-buy__prev']/text()").get()) or
                           clean_price(selector.xpath("//div[@class='product-buy__price']/text()").get()),
         "rating": product_data['rating'],
         "number_of_reviews": product_data['number_of_reviews'],
-        "brand_logo": logo(),
+        "brand_name": logo(),
         "description": safe_text(soup, 'div', class_="product-card-description-text"),
         "characteristics": characteristics,
         "drivers": safe_list(soup, 'a', class_="product-card-description-drivers__item-link", attribute='href'),
