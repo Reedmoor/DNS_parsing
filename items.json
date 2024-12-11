@@ -20,27 +20,105 @@
                 "name": "Роботы-пылесосы"
             }
         ],
-        "images": [],
-        "name": "Робот-пылесос Dreame X40 Ultra Complete белый",
-        "price_original": 139999,
-        "rating": 4.5,
-        "number_of_reviews": 43,
-        "brand_logo": "Dreame",
-        "description": "Робот-пылесос Dreame X40 Ultra Complete белого цвета легко собирает любой мусор и освежает помещение при помощи влажной уборки.",
-        "characteristics": [
-            {
-                "group": "Заводские данные",
-                "characteristics": []
-            },
-            {
-                "group": "Общие параметры",
-                "characteristics": []
-            },
-            {
-                "group": "Основные характеристики",
-                "characteristics": []
-            }
+        "images": [
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/64c9db06e18220ee220694b8b6f27db3/a8eb52a62d356cdfd89a6f16de656824fa63e4d2c0e183d864dcaaaf7e41b4b9.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/91fc98e499b27a27cfa4c1cdbb98100b/c80bc0449d5aacb1867d27a1dac3e8e667cbfcd4ea478f6d74ff6fb3890fa518.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/12d5fcd6ce2030c64ecf66859b2dc3b1/5abe11631a7c90d13a7b18ccf569c2640f607b623ac16d924393b70136e959ae.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/909f78891e6b79e372994a07dee30717/7a74f8bb4769c917b0fa1ede0accda9e89b32cfe7e6b359cf97e6edbdc309634.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/970350124dfc18e1937b1d5951d0ca72/57a6787f20029e37d3e9b1d74d6ced9232e69e3979b60bb374260355c34ad1c5.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/830e37e43242f3e32a49f7afe2a1da4c/175b546f0b2dbe9bc095684fb894b4f11bb80c4a921e0d6374f00f3f56261c53.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/48f13084bee4e6169c9a3e13e88288d5/2426c52c74ac7d0a74fc686ef12da208f2705f4e463337c30c82e2c17a2477c3.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/ba3423b052aacf53b546af17009e3f4f/6cde7b3a6fb20749ac34590e41fd0fde087fe52752338ed0bba846025f398edf.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/8f3039ce24d1207db4e876195b99f419/9be899898031506ae95191544bf99fe5da2666f26a66004b909efb54e3d0715c.jpg",
+            "https://c.dns-shop.ru/thumb/st1/fit/wm/0/0/81208fe4dd86fc1ba35d55c7c7e643fb/f371dd496c928966924713e00a6349457950b694d8017a6e8ef4df15e4de1cb4.jpg"
         ],
+        "name": "Робот-пылесос Dreame X40 Ultra Complete белый",
+        "price_discounted": "None",
+        "price_original": 139999,
+        "rating": 4.81,
+        "number_of_reviews": 46,
+        "brand_name": "Dreame",
+        "description": "Робот-пылесос Dreame X40 Ultra Complete белого цвета легко собирает любой мусор и освежает помещение при помощи влажной уборки.",
+        "characteristics": {
+            "Заводские данные": [
+                {
+                    "title": "Гарантия продавца / производителя",
+                    "value": "12 мес."
+                },
+                {
+                    "title": "Страна-производитель",
+                    "value": "Китай"
+                }
+            ],
+            "Общие параметры": [
+                {
+                    "title": "Тип",
+                    "value": "робот-пылесос"
+                },
+                {
+                    "title": "Модель",
+                    "value": "Dreame X40 Ultra Complete"
+                },
+                {
+                    "title": "Основной цвет",
+                    "value": "белый"
+                }
+            ],
+            "Основные характеристики": [
+                {
+                    "title": "Тип уборки",
+                    "value": "влажная, комбинированная, сухая"
+                },
+                {
+                    "title": "Мощность всасывания",
+                    "value": "12000 Па"
+                },
+                {
+                    "title": "Потребляемая мощность",
+                    "value": "75 Вт"
+                },
+                {
+                    "title": "Тип пылесборника",
+                    "value": "контейнер для пыли и воды"
+                },
+                {
+                    "title": "Объем пылесборника",
+                    "value": "0.3 л"
+                },
+                {
+                    "title": "Объем резервуара для воды / моющего средства",
+                    "value": "80 мл"
+                },
+                {
+                    "title": "Фильтр",
+                    "value": "HEPA-фильтр"
+                },
+                {
+                    "title": "Типы датчиков и сенсоров",
+                    "value": "визуальный датчик с ИИ, датчик загрязненности, датчик края, датчик обнаружения ковров, датчик обнаружения стен, инфракрасный датчик, лазерный датчик ещё"
+                },
+                {
+                    "title": "Тип навигации",
+                    "value": "LiDAR"
+                },
+                {
+                    "title": "Индикация",
+                    "value": "индикатор Wi-Fi, индикатор заряда аккумулятора, индикатор ошибки, световая"
+                },
+                {
+                    "title": "Дисплей",
+                    "value": "нет"
+                },
+                {
+                    "title": "Тип чистящего модуля",
+                    "value": "подъемный"
+                },
+                {
+                    "title": "Вид аксессуара для влажной уборки",
+                    "value": "моп"
+                }
+            ]
+        },
         "drivers": [
             "https://pub.fsa.gov.ru/rds/declaration/view/18577323/common",
             "https://drv.dns-shop.ru/drivers%2Foth%2FD%2Fdreame-x40-ultra_instrukcia_115555_09072024.pdf"
