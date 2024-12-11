@@ -110,11 +110,11 @@ def parse_reviews(driver):
                     'advantages': opinion_texts.get('advantages'),
                     'disadvantages': opinion_texts.get('disadvantages'),
                     'comment': opinion_texts.get('comment'),
+                    'likes': _safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "vote-widget__sum")]'),
                 }
                 print(review_data)
 
-                if review_data['text']:
-                    reviews.append(review_data)
+                reviews.append(review_data)
             except Exception as e:
                 print(f"Error parsing review: {e}")
 
