@@ -1,5 +1,7 @@
 import os
 import json
+from datetime import datetime
+
 import undetected_chromedriver as uc
 from random import randint
 from time import sleep as pause
@@ -16,6 +18,10 @@ def _safe_element_text(element, by, selector):
         return found_elem.text.strip() if found_elem else None
     except (NoSuchElementException, AttributeError):
         return None
+
+def convert_date(raw_date):
+    date_iso = datetime.strptime(raw_date, "%d.%m.%Y").strftime("%Y-%m-%d")
+    return date_iso
 
 def parse_product_details(driver, review_element):
     """Parse additional product details (color, size, etc.) from a specific review element."""
@@ -71,6 +77,23 @@ def parse_opinion_ratings(driver, review_element):
 
     return ratings
 
+def parse_review_photos(review_elem):
+    """ Parse photo links from review's ow-photos-and-videos section. """
+    photo_urls = []
+
+    # Find all img elements within ow-photos-and-videos that have data-src
+    photo_elems = review_elem.find_elements(By.XPATH,
+                                            './/a[contains(@class, "ow-photos__link")]//img[@data-src]')
+
+    for img in photo_elems:
+        original_url = img.get_attribute('data-src')
+        url = original_url.replace('crop', 'fit')
+        url = url.replace('100/100', '0/0')
+        url += ".webp"
+
+        photo_urls.append(url)
+
+    return photo_urls
 
 def load_existing_reviews(filename):
     if os.path.exists(filename):
@@ -93,6 +116,51 @@ def save_to_json(data, filename):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+def parse_comments(driver):
+    """Parse comments from the comments list section."""
+    try:
+        # Находим контейнер с комментариями
+        comments_container = driver.find_element(By.CLASS_NAME, 'comments-list')
+
+        # Извлекаем все элементы комментариев
+        comments = comments_container.find_elements(By.XPATH, './/div[contains(@class, "comment")]')
+
+        parsed_comments = []
+        for comment in comments:
+            username = _safe_element_text(comment, By.XPATH, './/div[contains(@class, "profile-info__name")]')
+            date = convert_full_date(_safe_element_text(comment, By.XPATH,
+                                          './/span[contains(@class, "comment__date.time-info")]'))
+            comment_text = _safe_element_text(comment, By.XPATH,
+                                              './/div[contains(@class, "comment__message.message")]')
+            likes = int(_safe_element_text(comment, By.XPATH, './/span[contains(@class, "vote-widget__sum")]'))
+
+            parsed_comments.append({
+                'username': username or None,
+                'date': date or None,
+                'comment': comment_text or None,
+                'likes': likes,
+            })
+
+        return parsed_comments
+
+    except Exception as e:
+        print(f"Error while parsing comments: {e}")
+        return []
+
+def convert_full_date(date_str):
+    """Convert a date in format '17 июня 2023 г. 21:26' to ISO 8601."""
+    from datetime import datetime
+    import locale
+
+    try:
+        # Установить локаль для русского языка
+        locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
+        parsed_date = datetime.strptime(date_str.strip(), '%d %B %Y г. %H:%M')
+        return parsed_date.isoformat()
+    except Exception as e:
+        print(f"Error converting date: {e}")
+        return None
+
 def parse_reviews(driver, json_filename="reviews.json"):
     """Parse reviews from the current page."""
     all_reviews = load_existing_reviews(json_filename)
@@ -111,12 +179,13 @@ def parse_reviews(driver, json_filename="reviews.json"):
                         title_elem = section.find_element(By.XPATH,
                                                           ".//div[@class='ow-opinion__text-title']")
 
-                        text_elem = section.find_element(By.XPATH, ".//div[@class='ow-opinion__text-desc']/p")
+                        text_elems = section.find_elements(By.XPATH, ".//div[@class='ow-opinion__text-desc']/p")
 
-
-                        if title_elem and text_elem:
+                        if title_elem and text_elems:
                             title = title_elem.text.strip()
-                            text = text_elem.text.strip()
+
+                            # Combine all text elements into a single string
+                            text = ' '.join([elem.text.strip() for elem in text_elems])
 
                             if title == 'Достоинства':
                                 opinion_texts['advantages'] = text
@@ -135,13 +204,15 @@ def parse_reviews(driver, json_filename="reviews.json"):
                 review_data = {
                     'username': _safe_element_text(review_elem, By.XPATH,
                                                    './/div[contains(@class, "profile-info__name")]'),
-                    'date': _safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "ow-opinion__date")]'),
+                    'date': convert_date(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "ow-opinion__date")]')),
                     'rating': parse_opinion_ratings(driver, review_elem),
                     'additions': parse_product_details(driver, review_elem),
                     'advantages': opinion_texts.get('advantages'),
                     'disadvantages': opinion_texts.get('disadvantages'),
                     'comment': opinion_texts.get('comment'),
-                    'likes': _safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "vote-widget__sum")]'),
+                    'media': "йцуйцу",
+                    'likes': int(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "vote-widget__sum")]')),
+                    'comments': parse_comments(driver)
                 }
                 print(review_data)
 

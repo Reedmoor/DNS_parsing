@@ -250,7 +250,7 @@ def parse_characteristics_page(driver, url):
         "categories": categories,
         "images": images,
         "name": safe_text(soup, 'div', class_="product-card-top__name"),
-        "price_discounted": clean_price(selector.xpath("//div[contains(@class, 'product-buy__price_active')]/text()").get()) or "None",
+        "price_discounted": clean_price(selector.xpath("//div[contains(@class, 'product-buy__price_active')]/text()").get()) or 0,
         "price_original": clean_price(selector.xpath("//span[@class='product-buy__prev']/text()").get()) or
                           clean_price(selector.xpath("//div[@class='product-buy__price']/text()").get()),
         "rating": product_data['rating'],
