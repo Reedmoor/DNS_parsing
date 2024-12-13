@@ -123,47 +123,38 @@ def parse_comments(driver, option_id):
     """Parse comments from the comments list section."""
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-    # Find the specific review container
     review_container = soup.select_one(f'div.ow-opinion.ow-opinions__item[data-opinion-id="{option_id}"]')
 
     if not review_container:
-        return None  # Возвращаем None, если отзыв не найден
+        return None
 
-    # Find all comment containers within this review
     comment_containers = review_container.select('div.comment')
 
     if not comment_containers:
-        return []  # Возвращаем пустой список, если комментариев нет
+        return []
 
     parsed_comments = []
 
     for comment in comment_containers:
         try:
-            # Extract comment content
             comment_content = comment.select_one('.comment__content')
 
             if comment_content:
-                # Extract username
                 username_elem = comment_content.select_one('.profile-info__name')
                 username = username_elem.get_text(strip=True) if username_elem else None
 
-                # Extract date
                 date_elem = comment_content.find('span', class_=['comment__date', 'time-info'])
                 date_text = date_elem.get_text(strip=True) if date_elem else None
 
-                # Parse the date to a standard format if possible
                 parsed_date = convert_full_date(date_text)
 
-                # Extract comment text
                 comment_text_elem = comment_content.find('div', class_=['comment__message', 'message'])
                 comment_text = comment_text_elem.get_text(strip=True) if comment_text_elem else None
 
-                # Extract likes
                 likes_elem = comment_content.find('span', class_=['vote-widget__sum'])
                 likes = int(likes_elem.get_text(strip=True)) if likes_elem and likes_elem.get_text(
                     strip=True).strip() else 0
 
-                # Add comment to the list
                 parsed_comments.append({
                     'username': username,
                     'date': parsed_date,
@@ -179,7 +170,6 @@ def parse_comments(driver, option_id):
 
 def convert_full_date(date_string):
     """ Convert Russian full date to a custom datetime format. """
-    # Словарь для перевода месяцев
     month_map = {
         'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04',
         'мая': '05', 'июня': '06', 'июля': '07', 'августа': '08',
@@ -187,7 +177,6 @@ def convert_full_date(date_string):
     }
 
     try:
-        # Регулярное выражение для разбора даты
         match = re.match(r'(\d{1,2})\s+(\w+)\s+(\d{4})\s+г\.\s+(\d{1,2}):(\d{2})', date_string)
         if match:
             day, month_name, year, hour, minute = match.groups()
@@ -206,17 +195,15 @@ def convert_full_date(date_string):
 def extract_media_urls(review_elem):
     """ Extract media URLs from image elements with class 'ow-photos__image loaded' """
     try:
-        # XPath to find all img elements within ow-photos-and-videos div that have a data-src attribute
         media_xpath = ('.//div[contains(@class, "ow-photos-and-videos")]'
                        '//a[contains(@class, "ow-photos__link")]'
                        '//img[contains(@class, "ow-photos__image")]')
         media_elements = review_elem.find_elements(By.XPATH, media_xpath)
 
-        # Use _safe_element_text to extract data-src attribute safely
         media_urls = [
             elem.get_attribute('data-src')
             for elem in media_elements
-            if elem.get_attribute('data-src')  # Filter out elements without data-src
+            if elem.get_attribute('data-src')
         ]
 
         return media_urls
