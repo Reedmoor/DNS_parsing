@@ -1,10 +1,13 @@
 import os
 import json
 from datetime import datetime
+import re
 
 import undetected_chromedriver as uc
 from random import randint
 from time import sleep as pause
+
+from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -118,48 +121,96 @@ def save_to_json(data, filename):
 
 def parse_comments(driver):
     """Parse comments from the comments list section."""
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+    # Find all comment containers
+    comment_containers = soup.select('div.comment')
+
+    parsed_comments = []
+
+    for comment in comment_containers:
+        try:
+            # Extract username
+            username_elem = comment.select_one('.profile-info__name')
+            username = username_elem.get_text(strip=True) if username_elem else None
+
+            # Extract date
+            date_elem = comment.find('span', class_=['comment__date', 'time-info'])
+            date_text = date_elem.get_text(strip=True) if date_elem else None
+
+            # Parse the date to a standard format if possible
+            parsed_date = convert_full_date(date_text)
+
+            # Extract comment text
+            comment_text_elem = comment.find('div', class_=['comment__message', 'message'])
+            comment_text = comment_text_elem.get_text(strip=True) if comment_text_elem else None
+
+            # Extract likes
+            likes_elem = comment.find('span', class_=['vote-widget__sum'])
+            likes = int(likes_elem.get_text(strip=True)) if likes_elem and likes_elem.get_text(
+                strip=True).strip() else 0
+
+            # Only add comment if it has some content
+            if username or comment_text:
+                parsed_comments.append({
+                    'username': username,
+                    'date': parsed_date,
+                    'comment_text': comment_text,
+                    'likes': likes
+                })
+
+        except Exception as comment_error:
+            print(f"Error parsing individual comment: {comment_error}")
+
+    return parsed_comments
+
+
+def convert_full_date(date_string):
+    """ Convert Russian full date to a custom datetime format. """
+    # Словарь для перевода месяцев
+    month_map = {
+        'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04',
+        'мая': '05', 'июня': '06', 'июля': '07', 'августа': '08',
+        'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12'
+    }
+
     try:
-        # Находим контейнер с комментариями
-        comments_container = driver.find_element(By.CLASS_NAME, 'comments-list')
+        # Регулярное выражение для разбора даты
+        match = re.match(r'(\d{1,2})\s+(\w+)\s+(\d{4})\s+г\.\s+(\d{1,2}):(\d{2})', date_string)
+        if match:
+            day, month_name, year, hour, minute = match.groups()
 
-        # Извлекаем все элементы комментариев
-        comments = comments_container.find_elements(By.XPATH, './/div[contains(@class, "comment")]')
+            month = month_map.get(month_name, '01')
 
-        parsed_comments = []
-        for comment in comments:
-            username = _safe_element_text(comment, By.XPATH, './/div[contains(@class, "profile-info__name")]')
-            date = convert_full_date(_safe_element_text(comment, By.XPATH,
-                                          './/span[contains(@class, "comment__date.time-info")]'))
-            comment_text = _safe_element_text(comment, By.XPATH,
-                                              './/div[contains(@class, "comment__message.message")]')
-            likes = int(_safe_element_text(comment, By.XPATH, './/span[contains(@class, "vote-widget__sum")]'))
+            return f"{year}-{day.zfill(2)}-{month} {hour.zfill(2)}:{minute}"
 
-            parsed_comments.append({
-                'username': username or None,
-                'date': date or None,
-                'comment': comment_text or None,
-                'likes': likes,
-            })
+        return date_string
 
-        return parsed_comments
-
-    except Exception as e:
-        print(f"Error while parsing comments: {e}")
-        return []
-
-def convert_full_date(date_str):
-    """Convert a date in format '17 июня 2023 г. 21:26' to ISO 8601."""
-    from datetime import datetime
-    import locale
-
-    try:
-        # Установить локаль для русского языка
-        locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
-        parsed_date = datetime.strptime(date_str.strip(), '%d %B %Y г. %H:%M')
-        return parsed_date.isoformat()
     except Exception as e:
         print(f"Error converting date: {e}")
-        return None
+        return date_string
+
+
+def extract_media_urls(review_elem):
+    """ Extract media URLs from image elements with class 'ow-photos__image loaded' """
+    try:
+        # XPath to find all img elements within ow-photos-and-videos div that have a data-src attribute
+        media_xpath = ('.//div[contains(@class, "ow-photos-and-videos")]'
+                       '//a[contains(@class, "ow-photos__link")]'
+                       '//img[contains(@class, "ow-photos__image")]')
+        media_elements = review_elem.find_elements(By.XPATH, media_xpath)
+
+        # Use _safe_element_text to extract data-src attribute safely
+        media_urls = [
+            elem.get_attribute('data-src')
+            for elem in media_elements
+            if elem.get_attribute('data-src')  # Filter out elements without data-src
+        ]
+
+        return media_urls
+    except Exception as e:
+        print(f"Error extracting media URLs: {e}")
+        return []
 
 def parse_reviews(driver, json_filename="reviews.json"):
     """Parse reviews from the current page."""
@@ -210,7 +261,7 @@ def parse_reviews(driver, json_filename="reviews.json"):
                     'advantages': opinion_texts.get('advantages'),
                     'disadvantages': opinion_texts.get('disadvantages'),
                     'comment': opinion_texts.get('comment'),
-                    'media': "йцуйцу",
+                    'media': extract_media_urls(review_elem),
                     'likes': int(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "vote-widget__sum")]')),
                     'comments': parse_comments(driver)
                 }
