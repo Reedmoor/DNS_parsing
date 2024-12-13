@@ -119,39 +119,51 @@ def save_to_json(data, filename):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def parse_comments(driver):
+def parse_comments(driver, option_id):
     """Parse comments from the comments list section."""
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-    # Find all comment containers
-    comment_containers = soup.select('div.comment')
+    # Find the specific review container
+    review_container = soup.select_one(f'div.ow-opinion.ow-opinions__item[data-opinion-id="{option_id}"]')
+
+    if not review_container:
+        return None  # Возвращаем None, если отзыв не найден
+
+    # Find all comment containers within this review
+    comment_containers = review_container.select('div.comment')
+
+    if not comment_containers:
+        return []  # Возвращаем пустой список, если комментариев нет
 
     parsed_comments = []
 
     for comment in comment_containers:
         try:
-            # Extract username
-            username_elem = comment.select_one('.profile-info__name')
-            username = username_elem.get_text(strip=True) if username_elem else None
+            # Extract comment content
+            comment_content = comment.select_one('.comment__content')
 
-            # Extract date
-            date_elem = comment.find('span', class_=['comment__date', 'time-info'])
-            date_text = date_elem.get_text(strip=True) if date_elem else None
+            if comment_content:
+                # Extract username
+                username_elem = comment_content.select_one('.profile-info__name')
+                username = username_elem.get_text(strip=True) if username_elem else None
 
-            # Parse the date to a standard format if possible
-            parsed_date = convert_full_date(date_text)
+                # Extract date
+                date_elem = comment_content.find('span', class_=['comment__date', 'time-info'])
+                date_text = date_elem.get_text(strip=True) if date_elem else None
 
-            # Extract comment text
-            comment_text_elem = comment.find('div', class_=['comment__message', 'message'])
-            comment_text = comment_text_elem.get_text(strip=True) if comment_text_elem else None
+                # Parse the date to a standard format if possible
+                parsed_date = convert_full_date(date_text)
 
-            # Extract likes
-            likes_elem = comment.find('span', class_=['vote-widget__sum'])
-            likes = int(likes_elem.get_text(strip=True)) if likes_elem and likes_elem.get_text(
-                strip=True).strip() else 0
+                # Extract comment text
+                comment_text_elem = comment_content.find('div', class_=['comment__message', 'message'])
+                comment_text = comment_text_elem.get_text(strip=True) if comment_text_elem else None
 
-            # Only add comment if it has some content
-            if username or comment_text:
+                # Extract likes
+                likes_elem = comment_content.find('span', class_=['vote-widget__sum'])
+                likes = int(likes_elem.get_text(strip=True)) if likes_elem and likes_elem.get_text(
+                    strip=True).strip() else 0
+
+                # Add comment to the list
                 parsed_comments.append({
                     'username': username,
                     'date': parsed_date,
@@ -212,16 +224,24 @@ def extract_media_urls(review_elem):
         print(f"Error extracting media URLs: {e}")
         return []
 
-def parse_reviews(driver, json_filename="reviews.json"):
+def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
     """Parse reviews from the current page."""
     all_reviews = load_existing_reviews(json_filename)
+    existing_opinion_ids = {review.get('opinion_id') for review in all_reviews if review.get('opinion_id')}
     try:
-        # Find all review elements
         review_elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'ow-opinion  ow-opinions__item')]")
+
+        comment_text_elem = driver.find_element(By.XPATH, '//span[@class="ui-collapse__link-text"]')
+        comment_text = comment_text_elem.text.strip() if comment_text_elem else None
+        print("Текст из элемента:", comment_text)
 
         for review_elem in review_elements:
             try:
-                # Parse opinion texts
+                opinion_id = review_elem.get_attribute('data-opinion-id')
+
+                if opinion_id in existing_opinion_ids:
+                    continue
+
                 opinion_texts = {}
                 text_sections = review_elem.find_elements(By.XPATH,
                                                           './/div[contains(@class, "ow-opinion__text")]')
@@ -253,6 +273,7 @@ def parse_reviews(driver, json_filename="reviews.json"):
 
                 # Collect review data
                 review_data = {
+                    'opinion_id': opinion_id,
                     'username': _safe_element_text(review_elem, By.XPATH,
                                                    './/div[contains(@class, "profile-info__name")]'),
                     'date': convert_date(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "ow-opinion__date")]')),
@@ -263,13 +284,15 @@ def parse_reviews(driver, json_filename="reviews.json"):
                     'comment': opinion_texts.get('comment'),
                     'media': extract_media_urls(review_elem),
                     'likes': int(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "vote-widget__sum")]')),
-                    'comments': parse_comments(driver)
+                    'comments': parse_comments(driver, opinion_id)
                 }
                 print(review_data)
 
-                all_reviews.append(review_data)
-                save_to_json(all_reviews, json_filename)
-                print(f"Added new review to {json_filename}")
+                if opinion_id not in existing_opinion_ids:
+                    all_reviews.append(review_data)
+                    existing_opinion_ids.add(opinion_id)
+                    save_to_json(all_reviews, json_filename)
+                    print(f"Added new review with ID {opinion_id} to {json_filename}")
             except Exception as e:
                 print(f"Error parsing review: {e}")
 
@@ -281,7 +304,7 @@ def parse_reviews(driver, json_filename="reviews.json"):
 
 def main():
     # URL of the product to scrape
-    TEST_URL = "https://www.dns-shop.ru/product/f72a537ff2cbed20/kovrik-ardor-gaming-gm-xl-asia-dragon-black-and-white-xl-cernyj/"
+    TEST_URL = "https://www.dns-shop.ru/product/0eeccc1d05b6344a/utug-polaris-pir-2820ak-3m-belyj/"
 
     # Set up the webdriver with additional options for stability
     options = uc.ChromeOptions()
@@ -303,12 +326,9 @@ def main():
 
         # Navigate directly to reviews page
         driver.get(reviews_url)
-        pause(randint(2, 4))  # Wait for the reviews page to load
+        pause(randint(1, 2))  # Wait for the reviews page to load
 
-        all_reviews = []
-
-        # Collect initial reviews
-        all_reviews.extend(parse_reviews(driver))
+        all_reviews = parse_reviews(driver)
 
         # Click "Load More" button to get additional reviews
         while True:
@@ -318,33 +338,17 @@ def main():
                                                 '//button[contains(@class, "button-ui_lg") and contains(@class, "paginator-widget__more")]'))
                 )
                 load_more_button.click()
-                pause(randint(4, 6))  # Wait for new reviews to load
+                pause(randint(10, 11))  # Wait for new reviews to load
 
-                # Parse newly loaded reviews
-                new_reviews = parse_reviews(driver)
-
-                # Check if we've already seen these reviews
-                new_unique_reviews = [
-                    review for review in new_reviews
-                    if review not in all_reviews
-                ]
-
-                all_reviews.extend(new_unique_reviews)
-
-                # If no new reviews, break the loop
-                if not new_unique_reviews:
-                    break
+                parse_reviews(driver)
 
             except TimeoutException:
                 # No more "Load More" button, exit the loop
                 break
 
         # Save reviews to JSON
-        if all_reviews:
-            save_to_json(all_reviews)
-            print(f'Total reviews parsed: {len(all_reviews)}')
-        else:
-            print("No reviews found.")
+        save_to_json(all_reviews)
+        print(f'Total reviews parsed: {len(all_reviews)}')
 
     except Exception as e:
         print(f"An error occurred: {e}")
