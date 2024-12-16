@@ -14,6 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
+
 def _safe_element_text(element, by, selector):
     """Safely extract text from an element using various locators."""
     try:
@@ -48,7 +49,7 @@ def parse_product_details(driver, review_element):
 
     return additions
 
-def parse_opinion_ratings(driver, review_element):
+def parse_opinion_ratings(driver, review_element, opinion_id):
     """Parse ratings from a specific review element."""
     ratings = {}
     try:
@@ -66,10 +67,17 @@ def parse_opinion_ratings(driver, review_element):
                 rating_value = tab.find_element(By.XPATH, './/span').text.strip()
 
                 # Handle star rating separately
+
                 if category_name == 'Общая':
-                    star_rating_elems = tab.find_elements(By.XPATH,
-                                                          './/div[contains(@class, "star-rating")]//span[@data-state="selected"]')
-                    rating_value = len(star_rating_elems)
+                    begins_xpath = './/span[@data-state="selected"]'
+                    other_ratings_xpath = './/div[@data-state="selected"]'
+
+                    # Условие для выбора XPath
+                    if len(f4rating_elements := tab.find_elements(By.XPATH, begins_xpath)) > 0:
+                        rating_value = len(f4rating_elements)
+                    else:
+                        star_rating_elems = tab.find_elements(By.XPATH, other_ratings_xpath)
+                        rating_value = len(star_rating_elems)
 
                 ratings[category_name] = int(rating_value)
             except Exception as e:
@@ -119,16 +127,47 @@ def save_to_json(data, filename):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def parse_comments(driver, option_id):
-    """Parse comments from the comments list section."""
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
+def load_comments(driver, opinion_id):
+    tag = driver.find_element(
+        By.XPATH,
+        f"//div[@data-opinion-id='{opinion_id}']//div[@data-role='opinion-comments']//a",
+    )
 
-    review_container = soup.select_one(f'div.ow-opinion.ow-opinions__item[data-opinion-id="{option_id}"]')
+    text = tag.find_element(By.XPATH, "./span").text.strip()
+
+    matches = re.search(r"\d+", text)
+
+    if not matches:
+        return False
+    driver.execute_script("arguments[0].scrollIntoView();", tag)
+    driver.execute_script("arguments[0].click();", tag)
+    pause(randint(1, 2))
+    return True
+
+
+def get_review_container(driver, opinion_id):
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    review_container = soup.select_one(
+        f'div.ow-opinion.ow-opinions__item[data-opinion-id="{opinion_id}"]'
+    )
 
     if not review_container:
         return None
 
-    comment_containers = review_container.select('div.comment')
+    return review_container
+
+
+def parse_comments(driver, opinion_id):
+    """Parse comments from the comments list section."""
+    review_container = get_review_container(driver, opinion_id)
+    if not review_container:
+        return []
+
+    if not load_comments(driver, opinion_id):
+        return []
+
+    review_container = get_review_container(driver, opinion_id)
+    comment_containers = review_container.select("div.comment")
 
     if not comment_containers:
         return []
@@ -264,7 +303,7 @@ def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
                     'username': _safe_element_text(review_elem, By.XPATH,
                                                    './/div[contains(@class, "profile-info__name")]'),
                     'date': convert_date(_safe_element_text(review_elem, By.XPATH, './/span[contains(@class, "ow-opinion__date")]')),
-                    'rating': parse_opinion_ratings(driver, review_elem),
+                    'rating': parse_opinion_ratings(driver, review_elem, opinion_id),
                     'additions': parse_product_details(driver, review_elem),
                     'advantages': opinion_texts.get('advantages'),
                     'disadvantages': opinion_texts.get('disadvantages'),
@@ -288,10 +327,11 @@ def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
 
     return all_reviews
 
-
+def parse_urls_from_file(urls="urls.txt"):
+    """Читает ссылки из файла и возвращает их списком."""
+    with open(urls, 'r') as file:
+        return [line.strip() for line in file.readlines() if line.strip()]
 def main():
-    # URL of the product to scrape
-    TEST_URL = "https://www.dns-shop.ru/product/0eeccc1d05b6344a/utug-polaris-pir-2820ak-3m-belyj/"
 
     # Set up the webdriver with additional options for stability
     options = uc.ChromeOptions()
@@ -299,55 +339,61 @@ def main():
     options.add_argument('--disable-dev-shm-usage')
 
     driver = None
-    try:
-        driver = uc.Chrome(options=options)
-        driver.get(TEST_URL)
-        pause(randint(2, 4))  # Random pause to simulate human behavior
-
-        # Find and extract the reviews page URL
-        rating_link = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//a[contains(@class, "product-card-top__rating_exists")]'))
-        )
-        reviews_url = rating_link.get_attribute("href")
-        print(f"Reviews URL: {reviews_url}")
-
-        # Navigate directly to reviews page
-        driver.get(reviews_url)
-        pause(randint(1, 2))  # Wait for the reviews page to load
-
-        all_reviews = parse_reviews(driver)
-
-        # Click "Load More" button to get additional reviews
-        while True:
+    with open('urls.txt','r') as text:
+        urls = [line.strip() for line in text.readlines() if line.strip()]
+        for url in urls:
             try:
-                load_more_button = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH,
-                                                '//button[contains(@class, "button-ui_lg") and contains(@class, "paginator-widget__more")]'))
+                driver = uc.Chrome(options=options)
+                driver.get(url)
+                pause(randint(1, 2))  # Random pause to simulate human behavior
+
+                # Find and extract the reviews page URL
+                rating_link = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//a[contains(@class, "product-card-top__rating_exists")]'))
                 )
-                load_more_button.click()
-                pause(randint(10, 11))  # Wait for new reviews to load
+                reviews_url = rating_link.get_attribute("href")
+                print(f"Reviews URL: {reviews_url}")
 
-                parse_reviews(driver)
 
-            except TimeoutException:
-                # No more "Load More" button, exit the loop
-                break
 
-        # Save reviews to JSON
-        save_to_json(all_reviews)
-        print(f'Total reviews parsed: {len(all_reviews)}')
+                # Navigate directly to reviews page
+                driver.get(reviews_url)
+                pause(randint(1, 2))  # Wait for the reviews page to load
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        # Ensure driver is closed properly
-        if driver:
-            try:
-                driver.quit()
-            except Exception as quit_error:
-                print(f"Error closing driver: {quit_error}")
+                all_reviews = parse_reviews(driver)
+
+                # Click "Load More" button to get additional reviews
+                while True:
+                    try:
+
+                        load_more_button = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.XPATH,
+                                                        '//button[contains(@class, "button-ui_lg") and contains(@class, "paginator-widget__more")]'))
+                        )
+                        load_more_button.click()
+                        pause(randint(2, 4))  # Wait for new reviews to load
+
+                        parse_reviews(driver)
+
+                    except TimeoutException:
+                        # No more "Load More" button, exit the loop
+                        break
+
+                # Save reviews to JSON
+                save_to_json(all_reviews)
+                print(f'Total reviews parsed: {len(all_reviews)}')
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                import traceback
+                traceback.print_exc()
+            finally:
+                # Ensure driver is closed properly
+                if driver:
+                    try:
+                        driver.quit()
+                    except Exception as quit_error:
+                        print(f"Error closing driver: {quit_error}")
 
 
 if __name__ == '__main__':

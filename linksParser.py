@@ -1,3 +1,5 @@
+import json
+import os
 import sys
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
@@ -29,6 +31,9 @@ def get_all_category_page_urls(driver, url_to_parse):
 
         # Get links from current page
         page_urls = get_urls_from_page(driver)
+        with open('urls.txt', 'a') as file:
+            for link in page_urls:
+                file.write(link + "\n")
         urls += page_urls
 
         # Check for "Next page" button
@@ -42,14 +47,66 @@ def get_all_category_page_urls(driver, url_to_parse):
     return urls
 
 
+def get_links_from_json(file_path="categories.json"):
+    """Extracts links from categories.json."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found. Make sure the JSON file exists.")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Adjust the key depending on your `categories.json` structure
+    links = [f"https://www.dns-shop.ru{item['url']}" for item in data if "url" in item]
+    return links
+
+
+def generate_urls_from_json(json_data):
+    urls_to_parse = []
+
+    def process_item(item):
+        # Если у элемента нет childs или childs - пустой список
+        if not item.get('childs'):
+            base_url = 'https://www.dns-shop.ru'
+            full_url = base_url + item['url'] + '?p={page}'
+            urls_to_parse.append(full_url)
+
+    def process_childs(data):
+        # Если data - список, обрабатываем каждый элемент
+        if isinstance(data, list):
+            for item in data:
+                # Сначала обрабатываем текущий элемент
+                process_item(item)
+
+                # Затем рекурсивно обрабатываем его вложенные подкатегории
+                if item.get('childs'):
+                    process_childs(item['childs'])
+        # Если data - словарь, обрабатываем его как элемент
+        elif isinstance(data, dict):
+            process_item(data)
+            if data.get('childs'):
+                process_childs(data['childs'])
+
+    # Начинаем обработку с корня JSON
+    process_childs(json_data)
+
+    return urls_to_parse
+
 def main():
     driver = uc.Chrome()
 
-    # Define search URLs with pagination
-    urls_to_parse = [
-        'https://www.dns-shop.ru/search/?q=%D0%BF%D1%8B%D0%BB%D0%B5%D1%81%D0%BE%D1%81+%D1%80%D0%BE%D0%B1%D0%BE%D1%82+dreame&category=17a8face16404e77&p={page}'
-    ]
+    # Parse the JSON data from the provided document
+    with open('categories.json', 'r', encoding='utf-8') as file:
+        data = json.load(file)
 
+    # Generate URLs
+    urls_to_parse = generate_urls_from_json(data)
+
+    # Print the generated URLs
+    print("URLs to parse:")
+    for url in urls_to_parse:
+        print(url)
+
+    # Example of how you might use these URLs in your scraping script
     all_product_urls = []
     for index, url in enumerate(urls_to_parse):
         print(f'Getting all links from category {index + 1}:')
@@ -57,9 +114,9 @@ def main():
         all_product_urls.extend(parsed_url)
 
     print("Writing all links to urls.txt:")
-    with open('urls.txt', 'w') as file:
-        for link in all_product_urls:
-            file.write(link + "\n")
+    # with open('urls.txt', 'w') as file:
+    #     for link in all_product_urls:
+    #         file.write(link + "\n")
 
     driver.quit()
     print('Link parsing complete!')

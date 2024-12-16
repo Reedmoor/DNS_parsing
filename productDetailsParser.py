@@ -11,6 +11,8 @@ from random import randint
 from time import sleep as pause
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
+from tqdm import tqdm
+
 TEST_URL = "https://www.dns-shop.ru/product/a67afeaff7bbd9cb/robot-pylesos-dreame-x40-ultra-complete-belyj/"
 
 def save_to_json(data, filename="items.json"):
@@ -88,6 +90,16 @@ def parse_breadcrumbs(driver):
 
 
 def parse_characteristics(driver):
+
+    try:
+        characteristics_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'product-characteristics-content'))
+        )
+        driver.execute_script("arguments[0].scrollIntoView(true);", characteristics_element)
+    except Exception as e:
+        print(f"Не удалось найти или прокрутить до 'product-characteristics-content': {e}")
+        return {}
+
     soup = BeautifulSoup(driver.page_source, 'lxml')
     characteristics = {}
 
@@ -124,9 +136,8 @@ def parse_characteristics(driver):
     return characteristics
 
 
-def extract_images(driver, max_images=10):
+def extract_images(driver, max_images=5):
     """Extract images using Selenium"""
-    driver.get(TEST_URL)
     images = []
 
     # Сначала найдем и кликнем на миниатюру
@@ -210,12 +221,12 @@ def parse_product_data(driver):
 def parse_characteristics_page(driver, url):
     """Parse product page details."""
     driver.get(url)
-    pause(randint(9, 11))
+    pause(randint(10, 13))
 
     soup = BeautifulSoup(driver.page_source, 'lxml')
     selector = scrapy.Selector(text=driver.page_source)
 
-    def logo(): #TODO совместить с product_data
+    def logo():
         json_ld_scripts = selector.xpath(
             "//script[@type='application/ld+json' and contains(text(), 'Product')]/text()").getall()
         brand_name = None
@@ -271,14 +282,14 @@ def main():
         urls = list(map(lambda line: line.strip(), file.readlines()))
 
     parsed_data = []
-    # for url in tqdm(urls, ncols=70, unit='товаров', colour='blue', file=sys.stdout):
-    try:
-        parsed_data.append(parse_characteristics_page(driver, TEST_URL))
-    except Exception as e:
-        print(f"Error parsing #url: {e}")
+    for url in tqdm(urls, ncols=70, unit='товар', colour='blue', file=sys.stdout):
+        try:
+            parsed_data.append(parse_characteristics_page(driver, url))
+            save_to_json(parsed_data)
+        except Exception as e:
+                print(f"Error parsing #url: {e}")
 
     # Save parsed data
-    save_to_json(parsed_data)
     driver.quit()
     print('Product parsing complete!')
 
