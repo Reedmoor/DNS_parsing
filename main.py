@@ -1,9 +1,8 @@
-import productDetailsParser, reviewParser, linksParser
+import productDetailsParser, linksParser
 
 def main():
     linksParser.main()
     productDetailsParser.main()
-    reviewParser.main()
 
 if __name__ == '__main__':
     main()

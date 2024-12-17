@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 from datetime import datetime
 import re
 
@@ -12,7 +13,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-
+from tqdm import tqdm
 
 
 def _safe_element_text(element, by, selector):
@@ -257,10 +258,6 @@ def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
     try:
         review_elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'ow-opinion  ow-opinions__item')]")
 
-        comment_text_elem = driver.find_element(By.XPATH, '//span[@class="ui-collapse__link-text"]')
-        comment_text = comment_text_elem.text.strip() if comment_text_elem else None
-        print("Текст из элемента:", comment_text)
-
         for review_elem in review_elements:
             try:
                 opinion_id = review_elem.get_attribute('data-opinion-id')
@@ -293,10 +290,6 @@ def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
                     except Exception as e:
                         print(f"Error parsing text section: {e}")
 
-                    print(opinion_texts.get('advantages'))
-                    print(opinion_texts.get('disadvantages'))
-                    print(opinion_texts.get('comment'))
-
                 # Collect review data
                 review_data = {
                     'opinion_id': opinion_id,
@@ -328,9 +321,9 @@ def parse_reviews(driver, json_filename="reviews.json", existing_reviews=None):
     return all_reviews
 
 def parse_urls_from_file(urls="urls.txt"):
-    """Читает ссылки из файла и возвращает их списком."""
     with open(urls, 'r') as file:
         return [line.strip() for line in file.readlines() if line.strip()]
+
 def main():
 
     # Set up the webdriver with additional options for stability
@@ -341,7 +334,7 @@ def main():
     driver = None
     with open('urls.txt','r') as text:
         urls = [line.strip() for line in text.readlines() if line.strip()]
-        for url in urls:
+        for url in tqdm(urls, ncols=70, unit='товар', colour='blue', file=sys.stdout):
             try:
                 driver = uc.Chrome(options=options)
                 driver.get(url)

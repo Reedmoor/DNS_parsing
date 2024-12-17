@@ -4,6 +4,7 @@ import scrapy
 import time
 
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -93,7 +94,7 @@ def parse_characteristics(driver):
 
     try:
         characteristics_element = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'product-characteristics-content'))
+            EC.presence_of_element_located((By.CLASS_NAME, 'product-card__characteristics'))
         )
         driver.execute_script("arguments[0].scrollIntoView(true);", characteristics_element)
     except Exception as e:
@@ -273,7 +274,7 @@ def parse_characteristics_page(driver, url):
     }
 
     return item
-
+from  reviewParser import parse_reviews
 def main():
     driver = uc.Chrome()
 
@@ -286,6 +287,60 @@ def main():
         try:
             parsed_data.append(parse_characteristics_page(driver, url))
             save_to_json(parsed_data)
+
+
+            try:
+                driver.get(url)
+                pause(randint(1, 2))  # Random pause to simulate human behavior
+
+                # Find and extract the reviews page URL
+                rating_link = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, '//a[contains(@class, "product-card-top__rating_exists")]'))
+                )
+                reviews_url = rating_link.get_attribute("href")
+                print(f"Reviews URL: {reviews_url}")
+
+                # Navigate directly to reviews page
+                driver.get(reviews_url)
+                pause(randint(1, 2))  # Wait for the reviews page to load
+
+                all_reviews = parse_reviews(driver)
+
+                # Click "Load More" button to get additional reviews
+                while True:
+                    try:
+
+                        load_more_button = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.XPATH,
+                                                        '//button[contains(@class, "button-ui_lg") and contains(@class, "paginator-widget__more")]'))
+                        )
+                        load_more_button.click()
+                        pause(randint(2, 4))  # Wait for new reviews to load
+
+                        parse_reviews(driver)
+
+                    except TimeoutException:
+                        # No more "Load More" button, exit the loop
+                        break
+
+                # Save reviews to JSON
+                save_to_json(all_reviews)
+                print(f'Total reviews parsed: {len(all_reviews)}')
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                import traceback
+                traceback.print_exc()
+            finally:
+                # Ensure driver is closed properly
+                if driver:
+                    try:
+                        driver.quit()
+                    except Exception as quit_error:
+                        print(f"Error closing driver: {quit_error}")
+
+
         except Exception as e:
                 print(f"Error parsing #url: {e}")
 
