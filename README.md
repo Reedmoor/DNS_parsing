@@ -40,7 +40,8 @@ CATEGORY = "frezery"
         "brand_name": "",
         "characteristics": {},
         "drivers": []
-    }```
+    }
+```
 
 ### Отзыв
 
