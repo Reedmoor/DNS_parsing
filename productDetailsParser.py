@@ -13,6 +13,7 @@ from time import sleep as pause
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from reviewParser import parse_reviews
 
 TEST_URL = "https://www.dns-shop.ru/product/a67afeaff7bbd9cb/robot-pylesos-dreame-x40-ultra-complete-belyj/"
 
@@ -274,7 +275,7 @@ def parse_characteristics_page(driver, url):
     }
 
     return item
-from  reviewParser import parse_reviews
+
 def main():
     driver = uc.Chrome()
 
